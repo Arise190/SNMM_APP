@@ -481,13 +481,13 @@
     }
 
     .bill-table {
-        table-layout: fixed;
+        width: 100%;
     }
 
     .bill-table th,
     .bill-table td {
-        padding: 0.75rem 0.6rem;
-        font-size: 1rem;
+        padding: 0.5rem 0.25rem;
+        font-size: 0.95rem;
         word-break: break-word;
     }
 
@@ -496,12 +496,14 @@
     }
 
     .qty-btn {
-        width: 32px;
-        height: 32px;
+        width: 28px;
+        height: 28px;
+        font-size: 1rem;
     }
 
     .qty-input {
-        width: 46px;
+        width: 38px;
+        padding: 0.15rem;
     }
 
     .modal-overlay {
@@ -538,10 +540,5 @@
     #checkout-summary-modal .modal-footer {
         flex-direction: column;
         display: flex;
-    }
-
-    .bill-table th,
-    .bill-table td {
-        padding: 0.75rem 0.5rem;
     }
 }

@@ -9,7 +9,7 @@ let priceMode = localStorage.getItem('snack_pos_price_mode') || 'base';
 
 // Pagination state
 let currentPage = 1;
-const itemsPerPage = 24;
+const itemsPerPage = 12;
 
 // DOM Elements
 const productGrid = document.getElementById('product-grid');
