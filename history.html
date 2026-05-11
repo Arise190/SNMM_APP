@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="th" translate="no">
+<head>
+    <meta name="google" content="notranslate">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Snack Management - ประวัติการขาย</title>
+    <link rel="icon" type="image/png" href="img/logo2.png">
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/admin.css">
+    <link rel="stylesheet" href="css/print.css">
+    <style media="print">
+        .app-container, .modal { display: none !important; }
+        body * { visibility: hidden; }
+        #batch-print-area, #batch-print-area * { 
+            visibility: visible !important; 
+        }
+        #batch-print-area {
+            position: static !important;
+        }
+    </style>
+    <style>
+        /* Select Mode Styles */
+        .checkbox-col { display: none; }
+        .select-mode-active .checkbox-col { display: table-cell; }
+    </style>
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="SnackPOS">
+    <link rel="apple-touch-icon" href="img/logo2.png">
+</head>
+<body class="history-page">
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="sidebar-header" style="padding: 1rem; text-align: center;">
+                <img src="img/logo2.png" alt="บ.บูรณ์เจริญ" style="max-width: 100%; max-height: 120px; object-fit: contain;">
+                <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 5px;">version 1.0</div>
+            </div>
+            <ul class="nav-links">
+                <li><a href="dashboard.html"><i class="material-icons">dashboard</i> <span data-i18n="menu_dashboard">แดชบอร์ดสถิติ</span></a></li>
+                <li><a href="index.html"><i class="material-icons">point_of_sale</i> <span data-i18n="menu_pos">หน้าขาย</span></a></li>
+                <li><a href="products.html"><i class="material-icons">inventory_2</i> <span data-i18n="menu_products">จัดการสินค้า</span></a></li>
+                <li><a href="categories.html"><i class="material-icons">category</i> <span data-i18n="menu_categories">หมวดหมู่</span></a></li>
+                <li><a href="stock.html"><i class="material-icons">inventory</i> <span data-i18n="menu_stock">สต็อกสินค้า</span></a></li>
+                <li><a href="history.html" class="active"><i class="material-icons">history</i> <span data-i18n="menu_history">ประวัติการขาย</span></a></li>
+            </ul>
+            
+            <div style="margin-top: auto; padding: 1rem; text-align: center; color: var(--text-muted); font-size: 0.8rem; font-weight: 500; display: flex; flex-direction: column; align-items: center; gap: 10px;">
+                <button onclick="openSettingsModal()" class="no-print" style="width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--border); background: white; box-shadow: var(--shadow-sm); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-main); transition: all 0.2s;" title="ตั้งค่า">
+                    <i class="material-icons">settings</i>
+                </button>
+                Vibed by Aun Booncharoen
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="admin-container">
+                <div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <h2>ประวัติการขาย / บิลย้อนหลัง</h2>
+                    <button class="btn btn-danger" onclick="deleteAllBills()">
+                        <i class="material-icons mr-2" style="vertical-align: middle; font-size: 1.2rem;">delete_forever</i> ลบบิลทั้งหมด
+                    </button>
+                </div>
+
+                <div class="card p-4 mb-4 flex justify-between items-center gap-4">
+                    <div class="flex-1">
+                        <label class="form-label">ค้นหาชื่อลูกค้า</label>
+                        <input type="text" id="search-history" class="form-control" placeholder="พิมพ์ชื่อร้าน หรือ ลูกค้า...">
+                    </div>
+                    <div>
+                        <div class="form-label">ยอดขายรวมทั้งหมด</div>
+                        <h3 class="text-primary" id="total-sales-amount">0 บาท</h3>
+                    </div>
+                    <div class="flex gap-2">
+                        <button id="btn-toggle-select" class="btn btn-primary btn-large" onclick="toggleSelectMode()">
+                            <i class="material-icons mr-2">check_box</i> เลือก
+                        </button>
+                        <button class="btn btn-success btn-large" onclick="printSelectedBills()" id="btn-print-selected" style="display: none;" disabled>
+                            <i class="material-icons mr-2">print</i> พิมพ์บิลที่เลือก (0)
+                        </button>
+                    </div>
+                </div>
+
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th class="checkbox-col" style="width: 50px; text-align: center;">
+                                <input type="checkbox" id="selectAllHistory" onclick="toggleSelectAllHistory()" style="width: 20px; height: 20px;">
+                            </th>
+                            <th>รหัสบิล</th>
+                            <th>วันที่ / เวลา</th>
+                            <th>ชื่อลูกค้า</th>
+                            <th>ยอดรวม</th>
+                            <th>การจัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-table-body">
+                        <!-- History Data -->
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <!-- Batch Print Area (Hidden during normal viewing) -->
+    <div id="batch-print-area" class="print-only"></div>
+
+    <!-- Bill Detail Modal -->
+    <div class="modal" id="bill-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-bill-title">รายละเอียดบิล</h3>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-2"><strong>ลูกค้า:</strong> <span id="modal-customer-name"></span></div>
+                <div class="mb-2"><strong>วันที่:</strong> <span id="modal-date"></span></div>
+                
+                <table class="data-table mt-4" style="font-size: 0.9rem;">
+                    <thead>
+                        <tr>
+                            <th>สินค้า</th>
+                            <th>จำนวน</th>
+                            <th>ราคา</th>
+                            <th>รวม</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modal-items-body"></tbody>
+                </table>
+                
+                <div class="text-right mt-4 font-bold text-lg text-primary" id="modal-total"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeModal()">ปิด</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/db.js"></script>
+    <script src="js/history.js"></script>
+    <script src="js/i18n.js"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js');
+        });
+      }
+    </script>
+</body>
+</html>

@@ -1,0 +1,169 @@
+/* css/print.css */
+@media print {
+    /* Set page size to F14 (Legal / Folio standard in TH) */
+    @page {
+        size: 8.5in 14in;
+        margin: 0.5cm;
+    }
+
+    /* Hide everything by default */
+    body * {
+        visibility: hidden;
+    }
+    
+    /* Only show the bill section (POS page) or batch print area (History page) */
+    .bill-section, .bill-section *,
+    #batch-print-area, #batch-print-area * {
+        visibility: visible;
+    }
+    
+    /* Reposition the bill section to the top left of the printed page */
+    .bill-section, #batch-print-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        max-width: 100%;
+        margin: 0;
+        padding: 0;
+        border: none;
+        box-shadow: none;
+        background-color: transparent;
+        height: auto;
+        overflow: visible;
+    }
+    
+    /* Hide specific elements inside the bill section that shouldn't be printed */
+    .no-print,
+    .btn-remove,
+    .action-buttons,
+    .qty-btn {
+        display: none !important;
+    }
+    
+    /* Adjust styles for printing */
+    .bill-header {
+        border-bottom: 2px solid #000;
+        margin-bottom: 20px;
+        padding: 0 0 10px 0;
+    }
+    
+    .bill-header h2 {
+        text-align: center;
+        font-size: 24px;
+        margin-bottom: 10px;
+    }
+    
+    .form-control {
+        border: none;
+        padding: 0;
+        font-size: 16px;
+        background: transparent;
+    }
+    
+    .bill-table th {
+        background-color: transparent;
+        border-bottom: 1px solid #000;
+        color: #000;
+    }
+    
+    .bill-table td {
+        border-bottom: 1px dashed #ccc;
+    }
+    
+    .qty-input {
+        border: none;
+        background: transparent;
+        font-weight: bold;
+    }
+    
+    .total-row {
+        margin-top: 20px;
+        border-top: 2px solid #000;
+        padding-top: 10px;
+    }
+    
+    /* Remove background colors and shadows */
+    .app-container,
+    .main-content,
+    .bill-footer {
+        background-color: transparent !important;
+        border: none !important;
+    }
+    
+    /* Batch Print Classes */
+    .print-page {
+        page-break-after: always;
+        padding: 20px;
+        font-family: 'Prompt', sans-serif;
+    }
+    .print-page:last-child {
+        page-break-after: auto;
+    }
+    
+    /* Custom Receipt Styling */
+    .custom-receipt .receipt-header h2 {
+        font-size: 22px;
+        margin-bottom: 0;
+    }
+    
+    .dotted-line-container {
+        display: flex;
+        align-items: flex-end;
+        gap: 8px;
+        font-size: 16px;
+    }
+    
+    .dotted-fill {
+        border-bottom: 1px dotted #000;
+        min-height: 24px;
+        display: inline-block;
+        text-align: center;
+    }
+    
+    .receipt-table {
+        border-collapse: collapse;
+        width: 100%;
+        margin-top: 20px;
+    }
+    
+    .receipt-table th, .receipt-table td {
+        border: 1px solid #000;
+        padding: 6px;
+        font-size: 14px;
+    }
+    
+    .receipt-table tr {
+        page-break-inside: avoid; /* ป้องกันไม่ให้บรรทัดเดียวกันถูกตัดขาดครึ่งเมื่อขึ้นหน้าใหม่ */
+    }
+    
+    .receipt-table th {
+        text-align: center;
+        background-color: transparent;
+    }
+    
+    .receipt-footer {
+        margin-top: 30px;
+    }
+    
+    .tracking-table {
+        border-collapse: collapse;
+        width: 300px;
+    }
+    
+    .tracking-table th, .tracking-table td {
+        border: 1px solid #000;
+        padding: 4px 8px;
+        font-size: 14px;
+    }
+    
+    .tracking-table th {
+        text-align: center;
+    }
+    
+    .tracking-table .empty-box {
+        width: 50px;
+    }
+    
+    .w-100 { width: 100%; }
+}

@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="th" translate="no">
+<head>
+    <meta name="google" content="notranslate">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Snack Management - ระบบขายหน้าร้าน</title>
+    <link rel="icon" type="image/png" href="img/logo2.png">
+    <!-- Google Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" media="print" onload="this.media='all'">
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/style.css?v=1.1">
+    <link rel="stylesheet" href="css/pos.css?v=1.1">
+    <link rel="stylesheet" href="css/print.css" media="print">
+    <style media="print">
+        .app-container { display: flex !important; }
+        .sidebar, .product-section { display: none !important; }
+        .modal, .modal-overlay { display: none !important; }
+        body * { visibility: hidden; }
+        .bill-section, .bill-section * { visibility: visible !important; }
+        .bill-section {
+            width: 100%;
+        }
+    </style>
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="SnackPOS">
+    <link rel="apple-touch-icon" href="img/logo2.png">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar no-print">
+            <div class="sidebar-header" style="padding: 1rem; text-align: center;">
+                <img src="img/logo2.png" alt="บ.บูรณ์เจริญ" style="max-width: 100%; max-height: 120px; object-fit: contain;">
+                <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 5px;">version 1.0</div>
+            </div>
+            <ul class="nav-links">
+                <li><a href="dashboard.html"><i class="material-icons">dashboard</i> <span data-i18n="menu_dashboard">แดชบอร์ดสถิติ</span></a></li>
+                <li><a href="index.html" class="active"><i class="material-icons">point_of_sale</i> <span data-i18n="menu_pos">หน้าขาย</span></a></li>
+                <li><a href="products.html"><i class="material-icons">inventory_2</i> <span data-i18n="menu_products">จัดการสินค้า</span></a></li>
+                <li><a href="categories.html"><i class="material-icons">category</i> <span data-i18n="menu_categories">หมวดหมู่</span></a></li>
+                <li><a href="stock.html"><i class="material-icons">inventory</i> <span data-i18n="menu_stock">สต็อกสินค้า</span></a></li>
+                <li><a href="history.html"><i class="material-icons">history</i> <span data-i18n="menu_history">ประวัติการขาย</span></a></li>
+            </ul>
+            <div class="p-4">
+                <button class="btn btn-outline btn-large" style="width: 100%;" onclick="toggleFullScreen()">
+                    <i class="material-icons">fullscreen</i> เต็มจอ
+                </button>
+            </div>
+            
+            <div style="margin-top: auto; padding: 1rem; text-align: center; color: var(--text-muted); font-size: 0.8rem; font-weight: 500; display: flex; flex-direction: column; align-items: center; gap: 10px;">
+                <button onclick="openSettingsModal()" class="no-print" style="width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--border); background: white; box-shadow: var(--shadow-sm); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-main); transition: all 0.2s;" title="ตั้งค่า">
+                    <i class="material-icons">settings</i>
+                </button>
+                Vibed by Aun Booncharoen
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="pos-container">
+                <!-- Left Side: Product Selection -->
+                <div class="product-section no-print">
+                    <div class="filter-bar">
+                        <div id="category-filters" class="category-buttons">
+                            <!-- Category Buttons Will Be Injected Here -->
+                            <button class="btn btn-primary btn-large filter-btn active" data-id="all">ทั้งหมด</button>
+                        </div>
+                        <div class="search-box">
+                            <i class="material-icons">search</i>
+                            <input type="text" id="search-input" class="form-control" placeholder="ค้นหาสินค้า...">
+                        </div>
+                        <div class="price-mode-bar" role="group" aria-label="เลือกชุดราคาขาย">
+                            <button type="button" class="price-mode-btn active" data-price-mode="base" id="price-mode-base">
+                                <span>ราคาเดิม</span>
+                                <strong id="price-mode-base-sample">3.85</strong>
+                            </button>
+                            <button type="button" class="price-mode-btn" data-price-mode="alt" id="price-mode-alt">
+                                <span>ราคาใหม่</span>
+                                <strong id="price-mode-alt-sample">3.75</strong>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="product-grid" class="product-grid mb-4">
+                        <!-- Products will be generated here -->
+                    </div>
+                    
+                    <!-- Pagination Controls -->
+                    <div id="pagination-controls" class="flex justify-center items-center gap-2 mt-4 mb-2">
+                        <!-- Pagination buttons will be generated here -->
+                    </div>
+                </div>
+
+                <!-- Right Side: Bill / Order -->
+                <div class="bill-section">
+                    <div class="bill-header">
+                        <div class="page-header" style="border-bottom: 1px solid var(--border); padding-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
+                            <h2>บิลรายการสินค้า</h2>
+                        </div>
+                    </div>
+
+                    <div class="bill-items">
+                        <table class="bill-table">
+                            <thead>
+                                <tr>
+                                    <th>รายการ</th>
+                                    <th width="15%">จำนวน</th>
+                                    <th width="20%">ราคา</th>
+                                    <th width="10%">ลบ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bill-items-body">
+                                <!-- Cart Items Will Be Injected Here -->
+                                <tr class="empty-bill">
+                                    <td colspan="4" class="text-center p-4 text-muted">ยังไม่มีรายการสินค้า</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="bill-footer">
+                        <div class="total-row">
+                            <span>ยอดรวมทั้งหมด:</span>
+                            <span id="total-amount" class="text-primary font-bold">0 บาท</span>
+                        </div>
+                        <div class="action-buttons no-print">
+                            <button class="btn btn-danger btn-large flex-1" id="btn-clear-bill">
+                                <i class="material-icons">delete</i> ล้างบิล
+                            </button>
+                            <button class="btn btn-success btn-large flex-1" style="flex: 2;" id="btn-checkout">
+                                <i class="material-icons">check_circle</i> ยืนยัน / คิดเงิน
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Numpad Modal for Box Capacity -->
+    <div class="modal-overlay" id="numpad-modal" style="display: none;">
+        <div class="modal-content text-center">
+            <h2 class="mb-2" id="numpad-product-name">ชื่อสินค้า</h2>
+            <p class="text-muted mb-4">ระบุจำนวนชิ้นในลังนี้</p>
+            
+            <div class="form-group">
+                <input type="number" id="numpad-display" class="form-control text-center text-primary font-bold" style="font-size: 2.5rem; height: 80px;" value="0" min="0">
+            </div>
+            
+            <div class="numpad">
+                <button class="numpad-btn" onclick="numpadPress(1)">1</button>
+                <button class="numpad-btn" onclick="numpadPress(2)">2</button>
+                <button class="numpad-btn" onclick="numpadPress(3)">3</button>
+                <button class="numpad-btn" onclick="numpadPress(4)">4</button>
+                <button class="numpad-btn" onclick="numpadPress(5)">5</button>
+                <button class="numpad-btn" onclick="numpadPress(6)">6</button>
+                <button class="numpad-btn" onclick="numpadPress(7)">7</button>
+                <button class="numpad-btn" onclick="numpadPress(8)">8</button>
+                <button class="numpad-btn" onclick="numpadPress(9)">9</button>
+                <button class="numpad-btn btn-danger" onclick="numpadClear()">C</button>
+                <button class="numpad-btn" onclick="numpadPress(0)">0</button>
+                <button class="numpad-btn btn-success" onclick="numpadConfirm()">
+                    <i class="material-icons">check</i>
+                </button>
+            </div>
+            
+            <button class="btn btn-outline btn-large mt-4" style="width: 100%;" onclick="closeNumpad()">ยกเลิก</button>
+        </div>
+    </div>
+
+    <!-- Variation Selection Modal -->
+    <div class="modal-overlay" id="variation-modal" style="display: none; z-index: 1050;">
+        <div class="modal-content text-center" style="max-width: 500px; padding: 1.5rem;">
+            <h2 class="mb-4" id="variation-product-name" style="font-size: 1.5rem;">เลือกไส้ / รูปแบบ</h2>
+            <div id="variation-buttons-container" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 1.5rem; max-height: 50vh; overflow-y: auto; padding-right: 5px; text-align: left;">
+                <!-- Variation rows injected here -->
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-outline btn-large flex-1" onclick="closeVariationModal()">ยกเลิก</button>
+                <button class="btn btn-success btn-large flex-1" onclick="confirmMultiVariations()">ตกลง</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Alert Modal -->
+    <div class="modal-overlay" id="custom-alert-modal" style="display: none; z-index: 9999;">
+        <div class="modal-content text-center" style="max-width: 350px;">
+            <div id="custom-alert-icon-container" style="margin-bottom: 1rem;">
+                <i class="material-icons" id="custom-alert-icon" style="font-size: 4rem; color: var(--danger);">error_outline</i>
+            </div>
+            <h2 class="mb-2" id="custom-alert-title">แจ้งเตือน</h2>
+            <p class="text-muted mb-4" id="custom-alert-message" style="font-size: 1.1rem;"></p>
+            <button class="btn btn-primary btn-large w-100" onclick="closeCustomAlert()" style="width: 100%;">ตกลง</button>
+        </div>
+    </div>
+
+    <!-- Custom Confirm Modal -->
+    <div class="modal-overlay" id="custom-confirm-modal" style="display: none; z-index: 9999;">
+        <div class="modal-content text-center" style="max-width: 400px;">
+            <div id="custom-confirm-icon-container" style="margin-bottom: 1rem;">
+                <i class="material-icons" style="font-size: 4rem; color: var(--primary);">help_outline</i>
+            </div>
+            <h2 class="mb-2" id="custom-confirm-title">ยืนยัน</h2>
+            <p class="text-muted mb-4" id="custom-confirm-message" style="font-size: 1.1rem; white-space: pre-line;"></p>
+            <div class="flex gap-4">
+                <button class="btn btn-outline flex-1 btn-large" id="custom-confirm-cancel">ยกเลิก</button>
+                <button class="btn btn-success flex-1 btn-large" id="custom-confirm-ok">ตกลง</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Checkout Summary Modal -->
+    <div class="modal-overlay" id="checkout-summary-modal" style="display: none; z-index: 1000;">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2 id="modal-title">สรุปยอดชำระเงิน</h2>
+                <button class="btn-icon" onclick="closeCheckoutSummary()"><i class="material-icons">close</i></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center mb-4">
+                    <p class="text-muted mb-1">ยอดรวมทั้งหมด</p>
+                    <div class="text-primary font-bold" style="font-size: 3rem;" id="summary-total">0 ฿</div>
+                </div>
+                
+                <div class="form-group mb-2">
+                    <label class="form-label">ชื่อลูกค้า / ร้านค้า (แสดงบนบิล)</label>
+                    <input type="text" id="customer-name" class="form-control" placeholder="พิมพ์ชื่อลูกค้าที่นี่..." style="font-size: 1.25rem;">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">อำเภอ (แสดงบนบิล)</label>
+                    <input type="text" id="customer-district" class="form-control" placeholder="ระบุอำเภอ..." style="font-size: 1.25rem;">
+                </div>
+                
+                <div class="bg-light p-4 rounded mt-4" style="background-color: #f8fafc; border-radius: 8px;">
+                    <div class="flex justify-between text-muted mb-2">
+                        <span>จำนวนรายการ:</span>
+                        <span id="summary-items-count" class="font-bold text-main">0 รายการ</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer flex gap-4 mt-4">
+                <button class="btn btn-outline btn-large flex-1" onclick="closeCheckoutSummary()">กลับไปแก้ไขบิล</button>
+                <button class="btn btn-success btn-large flex-1" id="btn-finalize-checkout">
+                    <i class="material-icons mr-2">save</i> รับเงิน & เก็บบิล
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/db.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/pos.js"></script>
+    <script src="js/i18n.js"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js').then(reg => {
+            console.log('SW registered!', reg);
+          }).catch(err => console.log('SW registration failed', err));
+        });
+      }
+    </script>
+</body>
+</html>

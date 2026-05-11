@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="th" translate="no">
+<head>
+    <meta name="google" content="notranslate">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Snack Management - จัดการสินค้า</title>
+    <link rel="icon" type="image/png" href="img/logo2.png">
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/admin.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="SnackPOS">
+    <link rel="apple-touch-icon" href="img/logo2.png">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="sidebar-header" style="padding: 1rem; text-align: center;">
+                <img src="img/logo2.png" alt="บ.บูรณ์เจริญ" style="max-width: 100%; max-height: 120px; object-fit: contain;">
+                <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 5px;">version 1.0</div>
+            </div>
+            <ul class="nav-links">
+                <li><a href="dashboard.html"><i class="material-icons">dashboard</i> <span data-i18n="menu_dashboard">แดชบอร์ดสถิติ</span></a></li>
+                <li><a href="index.html"><i class="material-icons">point_of_sale</i> <span data-i18n="menu_pos">หน้าขาย</span></a></li>
+                <li><a href="products.html" class="active"><i class="material-icons">inventory_2</i> <span data-i18n="menu_products">จัดการสินค้า</span></a></li>
+                <li><a href="categories.html"><i class="material-icons">category</i> <span data-i18n="menu_categories">หมวดหมู่</span></a></li>
+                <li><a href="stock.html"><i class="material-icons">inventory</i> <span data-i18n="menu_stock">สต็อกสินค้า</span></a></li>
+                <li><a href="history.html"><i class="material-icons">history</i> <span data-i18n="menu_history">ประวัติการขาย</span></a></li>
+            </ul>
+            
+            <div style="margin-top: auto; padding: 1rem; text-align: center; color: var(--text-muted); font-size: 0.8rem; font-weight: 500; display: flex; flex-direction: column; align-items: center; gap: 10px;">
+                <button onclick="openSettingsModal()" class="no-print" style="width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--border); background: white; box-shadow: var(--shadow-sm); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-main); transition: all 0.2s;" title="ตั้งค่า">
+                    <i class="material-icons">settings</i>
+                </button>
+                Vibed by Aun Booncharoen
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="admin-container">
+                <div class="page-header">
+                    <h2>จัดการสินค้า</h2>
+                    <button class="btn btn-primary" onclick="openModal()">
+                        <i class="material-icons" style="margin-right: 5px; font-size: 1.2rem;">add</i> เพิ่มสินค้าใหม่
+                    </button>
+                </div>
+
+                <div class="card p-4 mb-4 flex justify-between items-center gap-4">
+                    <div class="flex-1">
+                        <input type="text" id="search-product" class="form-control" placeholder="ค้นหาสินค้า...">
+                    </div>
+                    <div class="flex gap-2">
+                        <!-- Default state -->
+                        <button class="btn btn-outline" id="btn-enter-select-mode" style="color: var(--danger); border-color: var(--danger);" onclick="toggleSelectMode(true)">
+                            <i class="material-icons" style="margin-right: 5px; font-size: 1.2rem;">checklist</i> เลือกเพื่อลบ
+                        </button>
+                        <button class="btn btn-danger" id="btn-delete-all" onclick="deleteAllProducts()">
+                            <i class="material-icons" style="margin-right: 5px; font-size: 1.2rem;">delete_forever</i> ลบทั้งหมด
+                        </button>
+                        
+                        <!-- Selection state (Hidden by default) -->
+                        <button class="btn btn-outline" id="btn-cancel-select" style="display: none;" onclick="toggleSelectMode(false)">
+                            ยกเลิก
+                        </button>
+                        <button class="btn btn-danger" id="btn-confirm-delete-selected" style="display: none;" onclick="deleteSelectedProducts()">
+                            <i class="material-icons" style="margin-right: 5px; font-size: 1.2rem;">delete</i> ยืนยันการลบ
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                <table class="data-table product-table">
+                    <thead>
+                        <tr>
+                            <th class="select-column" style="width: 40px; text-align: center; display: none;">
+                                <input type="checkbox" id="selectAllCheckbox" style="transform: scale(1.5); cursor: pointer;" onclick="toggleSelectAll()">
+                            </th>
+                            <th>รหัส</th>
+                            <th>ชื่อสินค้า</th>
+                            <th>หมวดหมู่</th>
+                            <th>ราคาเดิม/ชิ้น</th>
+                            <th>ราคาใหม่/ชิ้น</th>
+                            <th>สต็อก (ลัง)</th>
+                            <th>จัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="product-table-body">
+                        <!-- Data -->
+                    </tbody>
+                </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Product Modal -->
+    <div class="modal" id="product-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title">เพิ่มสินค้าใหม่</h3>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="product-form">
+                    <input type="hidden" id="prod-id">
+                    
+                    <div class="form-group">
+                        <label class="form-label">ชื่อสินค้า</label>
+                        <input type="text" id="prod-name" class="form-control" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">หมวดหมู่</label>
+                        <select id="prod-category" class="form-control" required>
+                            <!-- Options -->
+                        </select>
+                    </div>
+                    
+                    <div class="product-price-grid">
+                        <div class="form-group flex-1">
+                            <label class="form-label">ต้นทุน/ชิ้น (บาท)</label>
+                            <input type="number" id="prod-cost" class="form-control" min="0" step="any" placeholder="0">
+                        </div>
+                        <div class="form-group flex-1">
+                            <label class="form-label">ราคาขายเดิม/ชิ้น (บาท)</label>
+                            <input type="number" id="prod-price" class="form-control" required min="0" step="any">
+                        </div>
+                        <div class="form-group flex-1">
+                            <label class="form-label">ราคาขายใหม่/ชิ้น (บาท)</label>
+                            <input type="number" id="prod-price-alt" class="form-control" required min="0" step="any" placeholder="เช่น 3.75">
+                        </div>
+                    </div>
+                    <div class="flex gap-4">
+                        <div class="form-group flex-1">
+                            <label class="form-label">ความจุเริ่มต้น (ชิ้น/ลัง)</label>
+                            <input type="number" id="prod-capacity" class="form-control" required min="1" value="1">
+                        </div>
+                        <div class="form-group flex-1">
+                            <label class="form-label">สต็อกรวม (ลัง)</label>
+                            <input type="number" id="prod-stock" class="form-control" required min="0">
+                        </div>
+                    </div>
+                    
+                    <hr style="margin: 1rem 0; border: none; border-top: 1px dashed var(--border);">
+                    
+                    <div class="form-group">
+                        <div class="flex justify-between align-center mb-2">
+                            <label class="form-label" style="margin:0;">ไส้ / รูปแบบ (มีหรือไม่ก็ได้)</label>
+                            <button type="button" class="btn btn-outline" onclick="addVariationRow()" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+                                <i class="material-icons" style="font-size: 1rem; vertical-align: middle;">add</i> เพิ่มไส้
+                            </button>
+                        </div>
+                        <div id="variations-container">
+                            <!-- Variations injected here -->
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+                <button class="btn btn-primary" onclick="saveProduct()">บันทึกข้อมูล</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/db.js"></script>
+    <script src="js/products.js"></script>
+    <script src="js/i18n.js"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js');
+        });
+      }
+    </script>
+</body>
+</html>
