@@ -172,17 +172,13 @@ function printSelectedBills() {
                 } else {
                     const item = grid[r][c];
                     if (item) {
-                        const pricePerPiece = item.pricePerPiece || item.price;
                         const capacity = item.capacity || '';
                         
                         rowHtml += `
-                            <td class="text-left" style="padding: 1px 2px; vertical-align: middle;">
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100px; display: inline-block;">${item.name}</span>
-                                    <span style="font-size: 0.8em; color: #333; margin-left: 2px;">@${pricePerPiece}</span>
-                                </div>
-                            </td>
                             <td class="text-center" style="padding: 1px 2px; font-weight: bold;">${item.qty}</td>
+                            <td class="text-left" style="padding: 1px 2px; vertical-align: middle;">
+                                <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px; display: inline-block;">${item.name}</span>
+                            </td>
                             <td class="text-center" style="padding: 1px 2px;">${capacity}</td>
                             <td class="text-right" style="padding: 1px 2px;">${item.subtotal.toLocaleString('th-TH')}</td>
                         `;
@@ -200,18 +196,18 @@ function printSelectedBills() {
             <table class="receipt-table w-100 mb-0" style="font-size: 10px; line-height: 1.1; table-layout: fixed; width: 100%; border-collapse: collapse;">
                 <thead>
                     <tr>
-                        <th style="width: 16%; padding: 2px;">รายการ</th>
                         <th style="width: 4%; padding: 2px;">ลัง</th>
+                        <th style="width: 16%; padding: 2px;">รายการ</th>
                         <th style="width: 4%; padding: 2px;">จุ</th>
                         <th style="width: 9.33%; padding: 2px;">จำนวนเงิน</th>
                         
-                        <th style="width: 16%; padding: 2px;">รายการ</th>
                         <th style="width: 4%; padding: 2px;">ลัง</th>
+                        <th style="width: 16%; padding: 2px;">รายการ</th>
                         <th style="width: 4%; padding: 2px;">จุ</th>
                         <th style="width: 9.33%; padding: 2px;">จำนวนเงิน</th>
                         
-                        <th style="width: 16%; padding: 2px;">รายการ</th>
                         <th style="width: 4%; padding: 2px;">ลัง</th>
+                        <th style="width: 16%; padding: 2px;">รายการ</th>
                         <th style="width: 4%; padding: 2px;">จุ</th>
                         <th style="width: 9.33%; padding: 2px;">จำนวนเงิน</th>
                     </tr>
