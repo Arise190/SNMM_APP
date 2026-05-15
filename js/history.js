@@ -9,6 +9,216 @@ const searchInput = document.getElementById('search-history');
 const totalSalesEl = document.getElementById('total-sales-amount');
 const modal = document.getElementById('bill-modal');
 
+/** แถวขั้นต่ำของกริด (เดิมออกแบบที่ 50 แถว / กระดาษ F14) */
+const PRINT_ROWS_MIN = 50;
+const PRINT_TRACK_ROWS = 5;
+
+/**
+ * หาคำย่อที่สั้นที่สุดโดยไม่ซ้ำกัน (first-come-first-served)
+ * เช่น ["ผัก","ตับ","น้ำพริก","ตอก"] → ["ผ","ต","น","ตอ"]
+ */
+function makeMinimalAbbrs(varNames) {
+    const used = {};
+    return varNames.map(name => {
+        for (let len = 1; len <= name.length; len++) {
+            const prefix = name.substring(0, len);
+            if (!used[prefix]) {
+                used[prefix] = true;
+                return prefix;
+            }
+        }
+        return name;
+    });
+}
+
+/**
+ * ยุบสินค้าเดียวกันหลายไส้ให้เป็นบรรทัดเดียว
+ * กลุ่มด้วย productId → ชื่อเป็น "ปังแผ่น (ผ/ต/น/ตอ)", qty/subtotal รวมกัน
+ */
+function consolidateItemsForPrint(items) {
+    const orderKeys = [];
+    const groups = new Map();
+
+    items.forEach(item => {
+        const key = item.productId != null ? String(item.productId) : item.name;
+        const match = item.name.match(/^(.+?)\s*\((.+)\)$/);
+        const baseName = match ? match[1].trim() : item.name;
+        const variation = match ? match[2].trim() : null;
+
+        if (!groups.has(key)) {
+            orderKeys.push(key);
+            groups.set(key, {
+                baseName,
+                variations: variation ? [variation] : [],
+                qty: item.qty,
+                subtotal: Number(item.subtotal) || 0,
+                capacities: [item.capacity],
+            });
+        } else {
+            const g = groups.get(key);
+            if (variation && !g.variations.includes(variation)) {
+                g.variations.push(variation);
+            }
+            g.qty += item.qty;
+            g.subtotal += Number(item.subtotal) || 0;
+            g.capacities.push(item.capacity);
+        }
+    });
+
+    return orderKeys.map(key => {
+        const g = groups.get(key);
+        let name;
+        if (g.variations.length === 0) {
+            name = g.baseName;
+        } else if (g.variations.length === 1) {
+            name = `${g.baseName} (${g.variations[0]})`;
+        } else {
+            const abbrs = makeMinimalAbbrs(g.variations);
+            name = `${g.baseName} (${abbrs.join('/')})`;
+        }
+        const allSame = g.capacities.every(c => c === g.capacities[0]);
+        return {
+            name,
+            qty: g.qty,
+            subtotal: g.subtotal,
+            capacity: allSame ? g.capacities[0] : '',
+        };
+    });
+}
+
+/**
+ * คำนวณ layout โดยอิงจากขนาดกระดาษ F14 จริง
+ * F14 = 14in × 96px = 1344px, margin 0.4cm×2 ≈ 30px, padding 10px, header+footer ≈ 100px
+ * → tbody พร้อมใช้ ≈ 1204px → แบ่งให้ครบทุกแถว = text ใหญ่ขึ้น + ไม่มีที่ว่างด้านล่าง
+ */
+function computeReceiptLayout(itemCount) {
+    const n = Math.max(0, itemCount);
+    const rowsNeeded = Math.ceil((n + PRINT_TRACK_ROWS) / 3);
+    const rowsCount = Math.max(PRINT_ROWS_MIN, rowsNeeded);
+
+    // F14 = 356mm @ 96/25.4 px/mm = 1345px
+    // margin 4mm×2 ≈ 30px  |  page padding 10px  |  header+thead+tfoot ≈ 115px
+    const TBODY_AVAIL = Math.round(356 * 96 / 25.4)   // 1345px
+                      - Math.round(8   * 96 / 25.4)   //   30px
+                      - 10                             //   10px
+                      - 115;                           //  115px  → ≈ 1190px
+    const rowH = Math.floor(TBODY_AVAIL / rowsCount);
+
+    // 1 บรรทัดต่อช่อง (เหมือน Excel reference): font ≈ rowH × 0.52
+    const fontPx = Math.max(8, Math.min(13, Math.floor(rowH * 0.52)));
+    const lineH  = 1.1;
+    const padV   = Math.max(1, Math.floor((rowH - Math.ceil(fontPx * lineH)) / 2));
+    const padH   = Math.max(3, padV + 1);
+
+    const headerTitlePx = Math.max(13, Math.min(18, Math.round(fontPx * 1.6)));
+    const headerInfoPx  = Math.max(10, Math.min(14, Math.round(fontPx * 1.2)));
+
+    return { rowsCount, rowH, fontPx, lineH, padV, padH, headerTitlePx, headerInfoPx };
+}
+
+function buildReceiptTableHtml(sale, items) {
+    const totalItems = items.length;
+    const { rowsCount, rowH, fontPx, lineH, padV, padH, headerTitlePx, headerInfoPx } =
+        computeReceiptLayout(totalItems);
+
+    const grid = Array.from({ length: rowsCount }, () => [null, null, null]);
+    let itemIdx = 0;
+    const col2ItemRows = rowsCount - PRINT_TRACK_ROWS;
+
+    for (let c = 0; c < 3; c++) {
+        const maxRowForCol = c === 2 ? col2ItemRows : rowsCount;
+        for (let r = 0; r < maxRowForCol; r++) {
+            if (itemIdx < totalItems) {
+                grid[r][c] = items[itemIdx];
+                itemIdx++;
+            }
+        }
+    }
+
+    const cs = `padding: ${padV}px ${padH}px;`;
+
+    let tbodyHtml = '';
+    for (let r = 0; r < rowsCount; r++) {
+        let rowHtml = `<tr style="height: ${rowH}px;">`;
+        for (let c = 0; c < 3; c++) {
+            if (c === 2 && r >= rowsCount - PRINT_TRACK_ROWS) {
+                const trackIdx = r - (rowsCount - PRINT_TRACK_ROWS);
+                if (trackIdx === 0) {
+                    rowHtml += `<td colspan="3" class="text-center font-bold" style="${cs} background-color: transparent;">จำนวนลูกค้าค้างลัง</td><td style="${cs}"></td>`;
+                } else if (trackIdx === 1) {
+                    rowHtml += `<td colspan="2" style="${cs}">ขาว / ปุ้ม</td><td style="${cs}"></td><td style="${cs}"></td>`;
+                } else if (trackIdx === 2) {
+                    rowHtml += `<td colspan="2" style="${cs}">SD / สยาม</td><td style="${cs}"></td><td style="${cs}"></td>`;
+                } else if (trackIdx === 3) {
+                    rowHtml += `<td colspan="2" style="${cs}">MN / มก</td><td style="${cs}"></td><td style="${cs}"></td>`;
+                } else if (trackIdx === 4) {
+                    rowHtml += `<td colspan="2" style="${cs}">ส.บ</td><td style="${cs}"></td><td style="${cs}"></td>`;
+                }
+            } else {
+                const item = grid[r][c];
+                if (item) {
+                    const capacity = item.capacity || '';
+                    rowHtml += `
+                            <td class="text-center" style="${cs} font-weight: bold; vertical-align: middle;">${item.qty}</td>
+                            <td class="text-left" style="${cs} vertical-align: middle; overflow: hidden;">
+                                <span style="display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: ${lineH};">${item.name}</span>
+                            </td>
+                            <td class="text-center" style="${cs} vertical-align: middle;">${capacity}</td>
+                            <td class="text-right" style="${cs} vertical-align: middle;">${item.subtotal.toLocaleString('th-TH')}</td>
+                        `;
+                } else {
+                    rowHtml += `<td style="${cs}">&nbsp;</td><td style="${cs}"></td><td style="${cs}"></td><td style="${cs}"></td>`;
+                }
+            }
+        }
+        rowHtml += '</tr>';
+        tbodyHtml += rowHtml;
+    }
+
+    const thStyle = `${cs} font-size: ${fontPx}px;`;
+    const footMain = Math.min(14, Math.round(fontPx * 1.35));
+
+    return {
+        tableHtml: `
+            <table class="receipt-table w-100 mb-0 receipt-table--dynamic" style="font-size: ${fontPx}px; line-height: ${lineH}; font-weight: bold; table-layout: fixed; width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr>
+                        <th style="width: 4%; ${thStyle}">ลัง</th>
+                        <th style="width: 18%; ${thStyle}">รายการ</th>
+                        <th style="width: 4%; ${thStyle}">จุ</th>
+                        <th style="width: 7.33%; ${thStyle}">จำนวนเงิน</th>
+
+                        <th style="width: 4%; ${thStyle}">ลัง</th>
+                        <th style="width: 18%; ${thStyle}">รายการ</th>
+                        <th style="width: 4%; ${thStyle}">จุ</th>
+                        <th style="width: 7.33%; ${thStyle}">จำนวนเงิน</th>
+
+                        <th style="width: 4%; ${thStyle}">ลัง</th>
+                        <th style="width: 18%; ${thStyle}">รายการ</th>
+                        <th style="width: 4%; ${thStyle}">จุ</th>
+                        <th style="width: 7.33%; ${thStyle}">จำนวนเงิน</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${tbodyHtml}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="12" style="text-align: left; padding: ${Math.max(padV, 3)}px 8px; font-weight: bold; font-size: ${footMain}px; border-top: 2px solid #000;">
+                            <div style="display: flex; justify-content: space-between;">
+                                <span>รวมเงินทั้งสิ้น</span>
+                                <span style="margin-right: 12px;">${sale.totalAmount.toLocaleString('th-TH')} บาท</span>
+                            </div>
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        `,
+        headerTitlePx,
+        headerInfoPx,
+    };
+}
+
 function renderHistory() {
     let filteredSales = salesHistory;
     
@@ -127,114 +337,19 @@ function printSelectedBills() {
     const printArea = document.getElementById('batch-print-area');
     printArea.innerHTML = '';
     
-    selectedSales.forEach(sale => {
+    selectedSales.forEach((sale) => {
         const dateStr = new Date(sale.date).toLocaleDateString('th-TH');
         const districtStr = sale.district ? sale.district : '';
-        
-        // 9-Column Grid Logic
-        const items = sale.items;
-        const totalItems = items.length;
-        
-        // Calculate rows: hardcode to 50 rows (for 145 items + 5 tracking rows) to always fill Legal paper
-        const rowsCount = 50; 
-        
-        const grid = Array.from({ length: rowsCount }, () => [null, null, null]);
-        
-        let itemIdx = 0;
-        for (let c = 0; c < 3; c++) {
-            const maxRowForCol = (c === 2) ? rowsCount - 5 : rowsCount;
-            for (let r = 0; r < maxRowForCol; r++) {
-                if (itemIdx < totalItems) {
-                    grid[r][c] = items[itemIdx];
-                    itemIdx++;
-                }
-            }
-        }
-        
-        let tbodyHtml = '';
-        for (let r = 0; r < rowsCount; r++) {
-            let rowHtml = '<tr>';
-            for (let c = 0; c < 3; c++) {
-                if (c === 2 && r >= rowsCount - 5) {
-                    // Tracking Table in the last 5 rows of column 3
-                    const trackIdx = r - (rowsCount - 5);
-                    if (trackIdx === 0) {
-                        rowHtml += `<td colspan="3" class="text-center font-bold" style="padding: 4px; background-color: transparent;">จำนวนลูกค้าค้างลัง</td><td style="padding: 4px;"></td>`;
-                    } else if (trackIdx === 1) {
-                        rowHtml += `<td colspan="2" style="padding: 4px;">ขาว / ปุ้ม</td><td style="padding: 4px;"></td><td style="padding: 4px;"></td>`;
-                    } else if (trackIdx === 2) {
-                        rowHtml += `<td colspan="2" style="padding: 4px;">SD / สยาม</td><td style="padding: 4px;"></td><td style="padding: 4px;"></td>`;
-                    } else if (trackIdx === 3) {
-                        rowHtml += `<td colspan="2" style="padding: 4px;">MN / มก</td><td style="padding: 4px;"></td><td style="padding: 4px;"></td>`;
-                    } else if (trackIdx === 4) {
-                        rowHtml += `<td colspan="2" style="padding: 4px;">ส.บ</td><td style="padding: 4px;"></td><td style="padding: 4px;"></td>`;
-                    }
-                } else {
-                    const item = grid[r][c];
-                    if (item) {
-                        const capacity = item.capacity || '';
-                        
-                        rowHtml += `
-                            <td class="text-center" style="padding: 1px 2px; font-weight: bold;">${item.qty}</td>
-                            <td class="text-left" style="padding: 1px 2px; vertical-align: middle;">
-                                <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px; display: inline-block;">${item.name}</span>
-                            </td>
-                            <td class="text-center" style="padding: 1px 2px;">${capacity}</td>
-                            <td class="text-right" style="padding: 1px 2px;">${item.subtotal.toLocaleString('th-TH')}</td>
-                        `;
-                    } else {
-                        // Empty slot
-                        rowHtml += `<td style="padding: 1px 2px;">&nbsp;</td><td style="padding: 1px 2px;"></td><td style="padding: 1px 2px;"></td><td style="padding: 1px 2px;"></td>`;
-                    }
-                }
-            }
-            rowHtml += '</tr>';
-            tbodyHtml += rowHtml;
-        }
-        
-        const tableHtml = `
-            <table class="receipt-table w-100 mb-0" style="font-size: 10px; line-height: 1.1; table-layout: fixed; width: 100%; border-collapse: collapse;">
-                <thead>
-                    <tr>
-                        <th style="width: 4%; padding: 2px;">ลัง</th>
-                        <th style="width: 16%; padding: 2px;">รายการ</th>
-                        <th style="width: 4%; padding: 2px;">จุ</th>
-                        <th style="width: 9.33%; padding: 2px;">จำนวนเงิน</th>
-                        
-                        <th style="width: 4%; padding: 2px;">ลัง</th>
-                        <th style="width: 16%; padding: 2px;">รายการ</th>
-                        <th style="width: 4%; padding: 2px;">จุ</th>
-                        <th style="width: 9.33%; padding: 2px;">จำนวนเงิน</th>
-                        
-                        <th style="width: 4%; padding: 2px;">ลัง</th>
-                        <th style="width: 16%; padding: 2px;">รายการ</th>
-                        <th style="width: 4%; padding: 2px;">จุ</th>
-                        <th style="width: 9.33%; padding: 2px;">จำนวนเงิน</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${tbodyHtml}
-                </tbody>
-                <tfoot>
-                    <tr>
-                        <td colspan="12" style="text-align: left; padding: 4px 10px; font-weight: bold; font-size: 14px; border-top: 2px solid #000;">
-                            <div style="display: flex; justify-content: space-between;">
-                                <span>รวมเงินทั้งสิ้น</span>
-                                <span style="margin-right: 20px;">${sale.totalAmount.toLocaleString('th-TH')} บาท</span>
-                            </div>
-                        </td>
-                    </tr>
-                </tfoot>
-            </table>
-        `;
-        
+        const items = consolidateItemsForPrint(sale.items || []);
+        const { tableHtml, headerTitlePx, headerInfoPx } = buildReceiptTableHtml(sale, items);
+
         const billHtml = `
             <div class="print-page custom-receipt" style="padding: 5px;">
                 <div class="receipt-header text-center mb-1">
-                    <h2 class="font-bold" style="font-size: 16px; margin-bottom: 2px;">บ.บูรณ์เจริญ มือถือเจ๊น้อง 064-4454983 เบอร์ 065-0720261</h2>
+                    <h2 class="font-bold" style="font-size: ${headerTitlePx}px; margin-bottom: 2px; line-height: 1.15;">บ.บูรณ์เจริญ มือถือเจ๊น้อง 064-4454983 เบอร์ 065-0720261</h2>
                 </div>
                 
-                <div class="receipt-customer-info mb-1" style="font-size: 12px;">
+                <div class="receipt-customer-info mb-1" style="font-size: ${headerInfoPx}px; line-height: 1.2;">
                     <div class="dotted-line-container">
                         <span>เลขที่บิล</span>
                         <span class="dotted-fill font-bold" style="width: 120px;">${String(sale.id).startsWith('INV') ? sale.id : '#' + sale.id}</span>
@@ -246,10 +361,9 @@ function printSelectedBills() {
                         <span class="dotted-fill" style="width: 150px;">${dateStr}</span>
                     </div>
                 </div>
-                
                 ${tableHtml}
-            </div>
-        `;
+            </div>`;
+
         printArea.innerHTML += billHtml;
     });
     

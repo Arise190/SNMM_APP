@@ -1802,6 +1802,88 @@ function initDB() {
     }
 }
 
+/** บิลทดสอบ 1 ใบ: สั่งทุกสินค้า/ทุกไส้ ลังละ 1 — ไม่หักสต็อก (รันครั้งเดียวต่อเครื่อง จนกว่าจะลบ flag ใน localStorage) */
+function seedMegaTestBillIfNeeded() {
+    const FLAG = 'snack_pos_mega_seed_v1';
+    if (localStorage.getItem(FLAG)) return;
+    try {
+        const raw = localStorage.getItem(DB_KEY);
+        if (!raw) return;
+        const data = JSON.parse(raw);
+        if (!Array.isArray(data.products) || !Array.isArray(data.sales)) return;
+        const marker = 'ทดสอบ_ทุกรายการทุกไส้';
+        if (data.sales.some((s) => s && s.customerName === marker)) {
+            localStorage.setItem(FLAG, '1');
+            return;
+        }
+
+        const dateObj = new Date();
+        const year = (dateObj.getFullYear() + 543).toString().slice(-2);
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const prefix = `INV-${year}${month}`;
+        let maxNum = 0;
+        data.sales.forEach((s) => {
+            if (!s || !String(s.id).startsWith(prefix)) return;
+            const numStr = String(s.id).slice(-4);
+            const num = parseInt(numStr, 10);
+            if (!isNaN(num) && num > maxNum) maxNum = num;
+        });
+        const invoiceId = `${prefix}${String(maxNum + 1).padStart(4, '0')}`;
+
+        const lines = [];
+        for (const p of data.products) {
+            const piecePrice = Number(p.price);
+            const price = Number.isFinite(piecePrice) ? piecePrice : 0;
+            if (p.variations && p.variations.length > 0) {
+                for (const v of p.variations) {
+                    const boxQty = parseInt(v.capacity, 10) || 1;
+                    const qty = 1;
+                    const name = `${p.name} (${v.name})`;
+                    lines.push({ p, name, productId: p.id, price, boxQty, qty, subtotal: qty * boxQty * price });
+                }
+            } else {
+                const boxQty = parseInt(p.capacity, 10) || 1;
+                const qty = 1;
+                lines.push({ p, name: p.name, productId: p.id, price, boxQty, qty, subtotal: qty * boxQty * price });
+            }
+        }
+
+        let totalAmount = 0;
+        let totalCost = 0;
+        for (const line of lines) {
+            totalAmount += line.subtotal;
+            const c = Number(line.p.costPrice ?? line.p.cost ?? 0) || 0;
+            totalCost += c * line.boxQty * line.qty;
+        }
+
+        const items = lines.map((line) => ({
+            name: line.name,
+            qty: line.qty,
+            productId: line.productId,
+            price: line.boxQty * line.price,
+            subtotal: line.subtotal,
+            capacity: line.boxQty,
+            pricePerPiece: line.price,
+        }));
+
+        data.sales.push({
+            id: invoiceId,
+            customerName: marker,
+            district: 'ทดสอบพิมพ์',
+            items,
+            totalAmount,
+            totalCost,
+            profit: totalAmount - totalCost,
+            date: dateObj.toISOString(),
+        });
+
+        localStorage.setItem(DB_KEY, JSON.stringify(data));
+        localStorage.setItem(FLAG, '1');
+    } catch (e) {
+        console.warn('[SnackPOS] mega test bill seed skipped:', e);
+    }
+}
+
 // ฟังก์ชันดึงข้อมูลทั้งหมด
 function migrateProductPrices(data) {
     if (!data || !Array.isArray(data.products)) return false;
@@ -1841,6 +1923,7 @@ function saveDB(data) {
 
 // ทำการเริ่มต้นทันทีเมื่อโหลดไฟล์นี้
 initDB();
+seedMegaTestBillIfNeeded();
 
 // แจกจ่าย API ให้กับระบบ
 window.DB = {

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>สร้างบิลทดสอบ — ทุกรายการทุกไส้</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 560px; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
+        button { padding: 0.75rem 1.25rem; font-size: 1rem; cursor: pointer; margin-top: 1rem; }
+        .warn { background: #fff3cd; border: 1px solid #ffc107; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; }
+        code { background: #f4f4f4; padding: 2px 6px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>บิลทดสอบ (ทุกสินค้า + ทุกไส้)</h1>
+    <div class="warn">
+        จะเพิ่มบิลหนึ่งใบใน <strong>ประวัติการขาย</strong> โดยสั่ง <strong>1 ลัง</strong> ต่อแต่ละรายการ/ไส้
+        ตามข้อมูลสินค้าในเครื่องนี้ — <strong>ไม่หักสต็อก</strong> (แก้เฉพาะ <code>sales</code> แล้วบันทึก)
+    </div>
+    <p>เปิดไฟล์นี้จากโฟลเดอร์โปรเจกต์ (หรือผ่านเว็บเซิร์ฟเวอร์เดียวกับแอป) แล้วกดปุ่มด้านล่าง</p>
+    <button type="button" id="btn-run">เพิ่มบิลทดสอบลงประวัติ</button>
+    <pre id="out" style="margin-top:1.5rem; white-space:pre-wrap; font-size:13px;"></pre>
+
+    <script src="js/db.js"></script>
+    <script>
+        function generateInvoiceId(dateObj, salesArray) {
+            const year = (dateObj.getFullYear() + 543).toString().slice(-2);
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const prefix = `INV-${year}${month}`;
+            const sales = Array.isArray(salesArray) ? salesArray : [];
+            const currentMonthSales = sales.filter((s) => String(s.id).startsWith(prefix));
+            let maxNum = 0;
+            currentMonthSales.forEach((s) => {
+                const numStr = String(s.id).slice(-4);
+                const num = parseInt(numStr, 10);
+                if (!isNaN(num) && num > maxNum) maxNum = num;
+            });
+            const nextNum = String(maxNum + 1).padStart(4, '0');
+            return `${prefix}${nextNum}`;
+        }
+
+        function buildMegaSale(data) {
+            const dateObj = new Date();
+            const lines = [];
+
+            for (const p of data.products) {
+                const piecePrice = Number(p.price);
+                const price = Number.isFinite(piecePrice) ? piecePrice : 0;
+
+                if (p.variations && p.variations.length > 0) {
+                    for (const v of p.variations) {
+                        const boxQty = parseInt(v.capacity, 10) || 1;
+                        const qty = 1;
+                        const name = `${p.name} (${v.name})`;
+                        const subtotal = qty * boxQty * price;
+                        lines.push({ p, name, productId: p.id, price, boxQty, qty, subtotal });
+                    }
+                } else {
+                    const boxQty = parseInt(p.capacity, 10) || 1;
+                    const qty = 1;
+                    const subtotal = qty * boxQty * price;
+                    lines.push({ p, name: p.name, productId: p.id, price, boxQty, qty, subtotal });
+                }
+            }
+
+            let totalAmount = 0;
+            let totalCost = 0;
+            for (const line of lines) {
+                totalAmount += line.subtotal;
+                const c = Number(line.p.costPrice ?? line.p.cost ?? 0) || 0;
+                totalCost += c * line.boxQty * line.qty;
+            }
+
+            const items = lines.map((line) => ({
+                name: line.name,
+                qty: line.qty,
+                productId: line.productId,
+                price: line.boxQty * line.price,
+                subtotal: line.subtotal,
+                capacity: line.boxQty,
+                pricePerPiece: line.price,
+            }));
+
+            return {
+                id: generateInvoiceId(dateObj, data.sales),
+                customerName: 'ทดสอบ_ทุกรายการทุกไส้',
+                district: 'ทดสอบพิมพ์',
+                items,
+                totalAmount,
+                totalCost,
+                profit: totalAmount - totalCost,
+                date: dateObj.toISOString(),
+            };
+        }
+
+        document.getElementById('btn-run').addEventListener('click', () => {
+            const out = document.getElementById('out');
+            if (!window.DB || typeof window.DB.get !== 'function') {
+                out.textContent = 'ไม่พบ window.DB — ตรวจว่าโหลด js/db.js แล้ว';
+                return;
+            }
+            if (!confirm('ยืนยันเพิ่มบิลทดสอบ 1 ใบใน sales (ไม่หักสต็อก)?')) return;
+
+            const data = window.DB.get();
+            if (!data || !Array.isArray(data.products)) {
+                out.textContent = 'ข้อมูลสินค้าไม่ถูกต้อง';
+                return;
+            }
+            if (!Array.isArray(data.sales)) data.sales = [];
+
+            const sale = buildMegaSale(data);
+            data.sales.push(sale);
+            window.DB.save(data);
+
+            out.textContent =
+                `สำเร็จ\n` +
+                `เลขที่บิล: ${sale.id}\n` +
+                `จำนวนบรรทัด: ${sale.items.length}\n` +
+                `ยอดรวม: ${sale.totalAmount.toLocaleString('th-TH', { maximumFractionDigits: 2 })} บาท\n` +
+                `ลูกค้า: ${sale.customerName}\n\n` +
+                `เปิด history.html เพื่อพิมพ์หรือลบบิลนี้ได้`;
+        });
+    </script>
+</body>
+</html>

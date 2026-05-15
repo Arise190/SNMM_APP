@@ -1,9 +1,9 @@
 /* css/print.css */
 @media print {
-    /* Set page size to F14 (Legal / Folio standard in TH) */
+    /* F14 = 216mm × 356mm */
     @page {
-        size: 8.5in 14in;
-        margin: 0.5cm;
+        size: 216mm 356mm;
+        margin: 4mm 5mm;
     }
 
     /* Hide everything by default */
@@ -121,6 +121,11 @@
         text-align: center;
     }
     
+    /* บิลหนึ่งร้านต่อกล่อง print-page — พยายามไม่แบ่งกลางบิล */
+    #batch-print-area > .print-page {
+        page-break-inside: avoid;
+    }
+
     .receipt-table {
         border-collapse: collapse;
         width: 100%;
@@ -131,6 +136,13 @@
         border: 1px solid #000;
         padding: 6px;
         font-size: 14px;
+    }
+
+    /* บิลประวัติ: ย่อตัวอักษรตามจำนวนแถว (history.js) — ให้สืบทอดจากตาราง */
+    #batch-print-area .receipt-table--dynamic th,
+    #batch-print-area .receipt-table--dynamic td {
+        font-size: inherit !important;
+        line-height: inherit !important;
     }
     
     .receipt-table tr {
