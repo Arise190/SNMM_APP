@@ -73,8 +73,7 @@ function consolidateItemsForPrint(items) {
         } else if (g.variations.length === 1) {
             name = `${g.baseName} (${g.variations[0]})`;
         } else {
-            const abbrs = makeMinimalAbbrs(g.variations);
-            name = `${g.baseName} (${abbrs.join('/')})`;
+            name = `${g.baseName} (${g.variations.join('/')})`;
         }
         const allSame = g.capacities.every(c => c === g.capacities[0]);
         return {

@@ -51,8 +51,16 @@ function renderDashboard(period = 'all') {
             totalItems += item.qty;
             customerSales[cName].qty += item.qty;
             
-            // Find product by name (since items in sale don't have productId, we match by name)
-            const p = products.find(prod => prod.name === item.name);
+            // Match by productId first, then exact name, then base name (for variation items "ชื่อ (ไส้)")
+            // Use == (loose) to handle number/string mismatch between stored productId and product.id
+            let p = item.productId != null
+                ? products.find(prod => prod.id == item.productId)
+                : null;
+            if (!p) p = products.find(prod => prod.name === item.name);
+            if (!p) {
+                const baseMatch = item.name.match(/^(.+?)\s*\((.+)\)$/);
+                if (baseMatch) p = products.find(prod => prod.name === baseMatch[1].trim());
+            }
             if (p) {
                 productSales[p.id].qty += item.qty;
                 productSales[p.id].revenue += item.subtotal;

@@ -10,6 +10,7 @@ import time
 import threading
 import queue
 import webbrowser
+import re
 from pathlib import Path
 
 PROJECT_DIR = Path(__file__).parent.resolve()
@@ -103,6 +104,13 @@ class DevHandler(http.server.SimpleHTTPRequestHandler):
         except OSError:
             self.send_error(404)
             return
+        # Inject cache-busting timestamp into local JS/CSS references so browser never uses stale cache
+        ts = str(int(time.time())).encode()
+        body = re.sub(
+            rb'((?:src|href)=")((?:js|css)/[^"]+\.(?:js|css))"',
+            lambda m: m.group(1) + m.group(2) + b'?v=' + ts + b'"',
+            body
+        )
         if b'</body>' in body:
             body = body.replace(b'</body>', RELOAD_JS + b'</body>', 1)
         elif b'</html>' in body:
@@ -132,8 +140,27 @@ class DevHandler(http.server.SimpleHTTPRequestHandler):
 
         if fpath.lower().endswith('.html') and os.path.isfile(fpath):
             self._html(fpath)
+        elif fpath.lower().endswith(('.js', '.css', '.json')) and os.path.isfile(fpath):
+            self._nocache(fpath)
         else:
             super().do_GET()
+
+    def _nocache(self, filepath):
+        """Serve JS/CSS/JSON with no-cache so browser always gets the latest file."""
+        ext = os.path.splitext(filepath)[1].lower()
+        mime = {'.js': 'application/javascript', '.css': 'text/css', '.json': 'application/json'}.get(ext, 'text/plain')
+        try:
+            with open(filepath, 'rb') as f:
+                body = f.read()
+        except OSError:
+            self.send_error(404)
+            return
+        self.send_response(200)
+        self.send_header('Content-Type', f'{mime}; charset=utf-8')
+        self.send_header('Content-Length', str(len(body)))
+        self.send_header('Cache-Control', 'no-cache')
+        self.end_headers()
+        self.wfile.write(body)
 
     def log_message(self, fmt, *args):
         skip = ('.js', '.css', '.png', '.ico', '.woff', '.svg',
