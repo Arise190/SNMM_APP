@@ -62,8 +62,8 @@ function renderProducts() {
                     <td>P${product.id}</td>
                     <td class="font-bold">${product.name}</td>
                     <td>${getCategoryName(product.categoryId)}</td>
-                    <td class="text-success font-bold price-cell">${formatPrice(product.price)} ฿/ชิ้น <br><small class="text-muted">(ลังละ ${product.capacity || 1} ชิ้น)</small></td>
-                    <td class="text-primary font-bold price-cell">${formatPrice(product.priceAlt)} ฿/ชิ้น <br><small class="text-muted">ใช้กับอำเภอราคาใหม่</small></td>
+                    <td class="text-primary font-bold price-cell">${formatPrice(product.price)} ฿/ชิ้น <br><small class="text-muted">(ลังละ ${product.capacity || 1} ชิ้น)</small></td>
+                    <td class="text-success font-bold price-cell">${formatPrice(product.priceAlt)} ฿/ชิ้น <br><small class="text-muted">ใช้กับอำเภอราคาเดิม</small></td>
                     <td>${product.stock}</td>
                     <td>
                         <div class="action-cell">
