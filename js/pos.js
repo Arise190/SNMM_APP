@@ -530,7 +530,7 @@ function renderCart() {
     if (currentCart.length === 0) {
         html = `<tr class="empty-bill"><td colspan="4" class="text-center p-4 text-muted">ยังไม่มีรายการสินค้า</td></tr>`;
     } else {
-        currentCart.forEach(item => {
+        [...currentCart].reverse().forEach(item => {
             total += item.subtotal;
             html += `
                 <tr>
@@ -734,6 +734,19 @@ function setupEventListeners() {
     
     // Global Key Handlers (Numpad & Checkout Modal)
     document.addEventListener('keydown', (e) => {
+        // 0. Variation Modal Logic — Enter = ตกลง เท่านั้น
+        const variationModal = document.getElementById('variation-modal');
+        if (variationModal && variationModal.style.display === 'flex') {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                confirmMultiVariations();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                closeVariationModal();
+            }
+            return;
+        }
+
         // 1. Numpad Modal Logic
         const numpadModal = document.getElementById('numpad-modal');
         if (numpadModal && numpadModal.style.display === 'flex') {

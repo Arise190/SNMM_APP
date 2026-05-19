@@ -1921,9 +1921,14 @@ function saveDB(data) {
     localStorage.setItem(DB_KEY, JSON.stringify(data));
 }
 
+// ผู้ใช้ใหม่เริ่มด้วยแอพเปล่า — ไม่มีสินค้าหรือหมวดหมู่โหลดไว้ให้
+// (ข้อมูลที่มีอยู่แล้วใน localStorage จะไม่ถูกแตะต้อง)
+initialData.products = [];
+initialData.categories = [];
+
 // ทำการเริ่มต้นทันทีเมื่อโหลดไฟล์นี้
 initDB();
-seedMegaTestBillIfNeeded();
+// seedMegaTestBillIfNeeded(); // ปิดการ seed ข้อมูลทดสอบ
 
 // แจกจ่าย API ให้กับระบบ
 window.DB = {
